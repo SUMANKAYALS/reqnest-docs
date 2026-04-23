@@ -1,30 +1,54 @@
-﻿# Reqnest
+# Reqnest
 
 ![npm version](https://img.shields.io/npm/v/@suamnkayal/reqnest)
 ![downloads](https://img.shields.io/npm/dm/@suamnkayal/reqnest)
 ![license](https://img.shields.io/npm/l/@suamnkayal/reqnest)
+![TypeScript](https://img.shields.io/badge/TypeScript-supported-3178c6)
+![Node.js](https://img.shields.io/badge/Node.js-%3E%3D16-green)
 
-> A modern, middleware-driven HTTP client for JavaScript (Node.js + Browser)
+> A modern, middleware-driven HTTP client for JavaScript — Node.js and Browser.
 
-Reqnest is a lightweight yet powerful HTTP client inspired by middleware architectures like Koa and Axios. It provides a flexible pipeline system to control request/response flow using plugins such as retry, caching, deduplication, and rate limiting.
-
----
-
-# ✨ Features
-
-* ⚡ Middleware-based architecture
-* 🔁 Retry mechanism for failed requests
-* 🧠 Built-in caching support
-* 🔂 Request deduplication
-* 🚦 Rate limiting
-* 🌐 Works in Node.js (via `undici`) and Browser
-* 🧩 Fully extensible plugin system
-* 📦 Lightweight & dependency-minimal
-* 🧪 TypeScript support
+Reqnest is a lightweight yet powerful HTTP client inspired by middleware architectures like Koa and Axios. It provides a flexible pipeline system to control request/response flow using composable plugins: retry, caching, deduplication, rate limiting, and more.
 
 ---
 
-# 📦 Installation
+## Table of Contents
+
+- [Features](#features)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Custom Instance](#custom-instance)
+- [Middleware System](#middleware-system)
+- [API Reference](#api-reference)
+  - [Methods](#methods)
+  - [Config Options](#config-options)
+  - [Response Structure](#response-structure)
+- [Built-in Plugins](#built-in-plugins)
+- [Error Handling](#error-handling)
+- [Architecture](#architecture)
+- [Project Structure](#project-structure)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [License](#license)
+- [Author](#author)
+
+---
+
+## Features
+
+- **Middleware-based architecture** — compose request/response logic in a clean, ordered pipeline
+- **Automatic retry** — configurable retry logic for failed or timed-out requests
+- **Built-in caching** — in-memory cache for repeated requests, no re-fetching
+- **Request deduplication** — identical in-flight requests share a single underlying fetch
+- **Rate limiting** — cap concurrent outgoing requests
+- **Universal** — works in Node.js (via `undici`) and the browser
+- **Fully extensible** — write custom plugins in minutes
+- **TypeScript-first** — fully typed config, responses, and plugin APIs
+- **Lightweight** — minimal dependencies, focused API
+
+---
+
+## Installation
 
 ```bash
 npm install @suamnkayal/reqnest
@@ -32,7 +56,7 @@ npm install @suamnkayal/reqnest
 
 ---
 
-# 🚀 Quick Start
+## Quick Start
 
 ```js
 import reqnest from "@suamnkayal/reqnest";
@@ -44,236 +68,252 @@ console.log(res.data);
 
 ---
 
-# 🧠 Create Custom Instance
+## Custom Instance
 
 ```js
-import { create, retry, cachePlugin, dedupe, rateLimit, dispatch } from "@suamnkayal/reqnest";
+import {
+  create,
+  retry,
+  cachePlugin,
+  dedupe,
+  rateLimit,
+  dispatch,
+} from "@suamnkayal/reqnest";
 
 const api = create({
   baseURL: "https://jsonplaceholder.typicode.com",
 });
 
-// Add plugins
-api.use(dedupe);
-api.use(cachePlugin);
-api.use(retry(2));
-api.use(rateLimit(3));
-api.use(dispatch);
+// Stack plugins — order matters
+api.use(dedupe);       // deduplicate parallel requests
+api.use(cachePlugin);  // cache successful responses
+api.use(retry(2));     // retry failed calls up to 2×
+api.use(rateLimit(3)); // max 3 concurrent requests
+api.use(dispatch);     // always last — executes the fetch
 
-// Request
 const res = await api.get("/posts");
 console.log(res.data);
 ```
 
 ---
 
-# ⚙️ Middleware System
+## Middleware System
 
-Reqnest uses a pipeline system:
+Reqnest uses a linear async middleware pipeline. Each layer receives a context object and a `next` function. Call `next()` to pass control downstream; everything after it runs on the way back up.
 
 ```js
 api.use(async (ctx, next) => {
-  console.log("➡️ Request:", ctx.config.url);
+  // Before fetch — modify request, log, inject headers
+  ctx.config.headers["X-Request-ID"] = generateId();
+  console.log(`→ ${ctx.config.method} ${ctx.config.url}`);
 
-  await next();
+  await next(); // hand off to the next middleware
 
-  console.log("⬅️ Response:", ctx.response?.status);
+  // After fetch — inspect response, transform data, log timing
+  console.log(`← ${ctx.response?.status}`);
 });
 ```
 
----
+Pipeline execution order:
 
-# 📌 API Overview
-
-## 🔹 Methods
-
-```js
-reqnest.get(url, config)
-reqnest.post(url, data, config)
-reqnest.put(url, data, config)
-reqnest.delete(url, config)
+```
+Request → [dedupe] → [cache] → [retry] → [rateLimit] → [dispatch] → Response
 ```
 
 ---
 
-## 🔹 Config Options
+## API Reference
+
+### Methods
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `get` | `get(url, config?)` | Perform a GET request |
+| `post` | `post(url, data, config?)` | POST with a request body |
+| `put` | `put(url, data, config?)` | PUT — replace a resource |
+| `delete` | `delete(url, config?)` | Delete a resource |
+| `use` | `use(middleware)` | Register a middleware layer |
+
+### Config Options
 
 ```ts
-{
-  baseURL?: string;
-  url?: string;
-  method?: string;
-  headers?: Record<string, string>;
-  params?: Record<string, any>;
-  data?: any;
-  timeout?: number;
-  responseType?: "json" | "text" | "blob";
-  signal?: AbortSignal;
-
-  transformRequest?: (data) => any;
-  transformResponse?: (data) => any;
+interface RequestConfig {
+  baseURL?:           string;
+  url?:               string;
+  method?:            "GET" | "POST" | "PUT" | "DELETE";
+  headers?:           Record<string, string>;
+  params?:            Record<string, any>;
+  data?:              any;
+  timeout?:           number;                     // milliseconds
+  responseType?:      "json" | "text" | "blob";
+  signal?:            AbortSignal;
+  transformRequest?:  (data: any) => any;
+  transformResponse?: (data: any) => any;
 }
 ```
 
----
-
-## 🔹 Response Structure
+### Response Structure
 
 ```ts
-{
-  data: any;
-  status: number;
+interface ReqnestResponse<T = any> {
+  data:       T;
+  status:     number;
   statusText: string;
-  headers: Headers;
-  raw: Response;
+  headers:    Headers;
+  raw:        Response;
 }
 ```
 
 ---
 
-# 🔌 Built-in Plugins
+## Built-in Plugins
 
-## 🔁 Retry
+### `retry(n)`
+
+Retries failed requests automatically up to `n` times before throwing.
 
 ```js
 api.use(retry(3));
 ```
 
-Retries failed requests automatically.
-
 ---
 
-## 🧠 Cache
+### `cachePlugin`
+
+Caches successful GET responses in memory. Repeated identical requests return instantly without a network round-trip.
 
 ```js
 api.use(cachePlugin);
 ```
 
-Caches responses for repeated calls.
-
 ---
 
-## 🔂 Dedupe
+### `dedupe`
+
+Deduplicates identical in-flight requests. Multiple callers waiting on the same URL share one underlying fetch — the response is broadcast to all.
 
 ```js
 api.use(dedupe);
 ```
 
-Avoids duplicate parallel requests.
-
 ---
 
-## 🚦 Rate Limit
+### `rateLimit(n)`
+
+Caps concurrent outgoing requests to `n`. Excess requests are queued and dispatched as slots open.
 
 ```js
 api.use(rateLimit(2));
 ```
 
-Limits concurrent requests.
-
 ---
 
-# ⏱ Timeout Example
+### `dispatch`
+
+The terminal middleware that executes the actual HTTP fetch. **Always register this last.**
 
 ```js
-await api.get("/posts", { timeout: 1000 });
+api.use(dispatch);
 ```
 
 ---
 
-# ❌ Error Handling
+## Error Handling
+
+### Timeout
+
+```js
+// Automatically cancels via AbortSignal after 3 seconds
+const res = await api.get("/slow-endpoint", { timeout: 3000 });
+```
+
+### Try / Catch
 
 ```js
 try {
-  await api.get("/invalid");
+  const res = await api.get("/might-fail");
+  console.log(res.data);
 } catch (err) {
-  console.log(err.message);
+  // err.message → "Request timed out" | "Not Found" | network error, etc.
+  console.error(err.message);
 }
 ```
 
 ---
 
-# 🏗 Architecture
+## Architecture
 
-Reqnest is built on a **middleware pipeline pattern**:
+Reqnest is built on a **middleware pipeline pattern** — the same model used by Koa and Express. Every request flows through a stack of composable async functions before hitting the network.
 
 ```
-Request → Middleware → Middleware → Dispatch → Response
+Request
+  └─► Middleware 1 (before)
+        └─► Middleware 2 (before)
+              └─► dispatch (fetch)
+        └─► Middleware 2 (after)
+  └─► Middleware 1 (after)
+Response
 ```
 
-This makes it:
+This design makes the library:
 
-* Highly customizable
-* Easy to extend
-* Suitable for large-scale applications
+- **Highly customizable** — inject any logic at any point in the pipeline
+- **Easy to extend** — a plugin is just an async function
+- **Predictable** — execution order is always explicit
+- **Suitable for large-scale applications** — plugins compose cleanly without coupling
 
 ---
 
-# 📁 Project Structure
+## Project Structure
 
 ```
 src/
- ├── core/
- ├── plugins/
- ├── utils/
- ├── types/
- └── index.ts
+├── core/         # Client factory, context, pipeline runner
+├── plugins/      # retry, cache, dedupe, rateLimit, dispatch
+├── utils/        # URL builder, timeout helpers
+├── types/        # TypeScript interfaces and types
+└── index.ts      # Public API surface
 ```
 
 ---
 
-# 🔮 Roadmap
+## Roadmap
 
-* [ ] Interceptors system (Axios-like)
-* [ ] Better browser optimization
-* [ ] Request cancellation helpers
-* [ ] Devtools / debugging logs
-* [ ] Plugin ecosystem
-
----
-
-# 🤝 Contributing
-
-Contributions are welcome!
-
-1. Fork the repo
-2. Create your feature branch
-3. Commit changes
-4. Open a pull request
+- [ ] Axios-compatible interceptors (request & response)
+- [ ] Request cancellation helpers and AbortController wrappers
+- [ ] Devtools integration and structured debug logging
+- [ ] Improved browser bundle optimization (tree-shaking)
+- [ ] Official plugin ecosystem and registry
 
 ---
 
-# 🐛 Issues
+## Contributing
 
-Report bugs here:
+Contributions are welcome! Please open an issue first to discuss significant changes.
 
-👉 [https://github.com/SUMANKAYALS/reqnest/issues](https://github.com/SUMANKAYALS/reqnest/tree/main/ISSUE_TEMPLATE)
+1. Fork the repository
+2. Create your feature branch: `git checkout -b feat/my-feature`
+3. Commit your changes: `git commit -m "feat: add my feature"`
+4. Push to the branch: `git push origin feat/my-feature`
+5. Open a pull request
 
----
-
-# 📜 License
-
-MIT License © Suman Kayal
-
----
-
-# ⭐ Support
-
-If you like this project:
-
-* ⭐ Star the repo
-* 🐦 Share it
-* 💡 Suggest improvements
+Report bugs at: [github.com/SUMANKAYALS/reqnest/issues](https://github.com/SUMANKAYALS/reqnest/tree/main/ISSUE_TEMPLATE)
 
 ---
 
-# 💬 Author
+## License
+
+MIT License © [Suman Kayal](https://github.com/SUMANKAYALS)
+
+---
+
+## Author
 
 **Suman Kayal**
 
-* GitHub: https://github.com/SUMANKAYALS
-* npm: https://www.npmjs.com/package/@suamnkayal/reqnest
+- GitHub: [@SUMANKAYALS](https://github.com/SUMANKAYALS)
+- npm: [@suamnkayal/reqnest](https://www.npmjs.com/package/@suamnkayal/reqnest)
 
 ---
 
-> Built with ❤️ for developers who want more control over HTTP requests.
+> Built with care for developers who want real control over HTTP requests.

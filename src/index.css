@@ -1,0 +1,164 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Reqnest docs design system. All colors HSL. */
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 4%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 4%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 4%;
+
+    --primary: 240 10% 4%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 240 5% 96%;
+    --secondary-foreground: 240 10% 4%;
+
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 4% 46%;
+
+    --accent: 240 5% 96%;
+    --accent-foreground: 240 10% 4%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 240 6% 90%;
+    --input: 240 6% 90%;
+    --ring: 240 10% 4%;
+
+    --code-bg: 240 6% 97%;
+    --code-fg: 240 10% 12%;
+    --code-border: 240 6% 90%;
+
+    --doc-prose: 240 6% 25%;
+    --doc-heading: 240 10% 4%;
+    --doc-link: 217 91% 50%;
+
+    --radius: 0.625rem;
+  }
+
+  .dark {
+    --background: 0 0% 4.3%;
+    --foreground: 0 0% 98%;
+
+    --card: 0 0% 6%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 0 0% 6%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 0 0% 98%;
+    --primary-foreground: 240 10% 4%;
+
+    --secondary: 0 0% 10%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 0 0% 10%;
+    --muted-foreground: 240 5% 65%;
+
+    --accent: 0 0% 12%;
+    --accent-foreground: 0 0% 98%;
+
+    --destructive: 0 70% 45%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 0 0% 14%;
+    --input: 0 0% 14%;
+    --ring: 0 0% 80%;
+
+    --code-bg: 0 0% 7%;
+    --code-fg: 0 0% 92%;
+    --code-border: 0 0% 14%;
+
+    --doc-prose: 240 5% 75%;
+    --doc-heading: 0 0% 98%;
+    --doc-link: 217 91% 65%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  ::selection {
+    background: hsl(var(--foreground) / 0.15);
+  }
+}
+
+@layer components {
+  .doc-prose {
+    @apply text-[15px] leading-7;
+    color: hsl(var(--doc-prose));
+  }
+  .doc-prose h1 {
+    @apply text-3xl md:text-4xl font-semibold tracking-tight mt-2 mb-4;
+    color: hsl(var(--doc-heading));
+  }
+  .doc-prose h2 {
+    @apply text-2xl font-semibold tracking-tight mt-12 mb-4 pb-2 border-b border-border;
+    color: hsl(var(--doc-heading));
+  }
+  .doc-prose h3 {
+    @apply text-lg font-semibold mt-8 mb-3;
+    color: hsl(var(--doc-heading));
+  }
+  .doc-prose p {
+    @apply my-4;
+  }
+  .doc-prose a {
+    color: hsl(var(--doc-link));
+    @apply underline-offset-4 hover:underline;
+  }
+  .doc-prose ul {
+    @apply my-4 ml-6 list-disc space-y-2;
+  }
+  .doc-prose ol {
+    @apply my-4 ml-6 list-decimal space-y-2;
+  }
+  .doc-prose strong {
+    @apply font-semibold;
+    color: hsl(var(--doc-heading));
+  }
+  .doc-prose code:not(pre code) {
+    @apply rounded px-1.5 py-0.5 text-[0.875em] font-mono;
+    background: hsl(var(--muted));
+    color: hsl(var(--doc-heading));
+    border: 1px solid hsl(var(--border));
+  }
+  .doc-prose blockquote {
+    @apply border-l-2 border-border pl-4 italic my-4;
+    color: hsl(var(--muted-foreground));
+  }
+
+  .sidebar-link {
+    @apply flex items-center rounded-md px-3 py-1.5 text-sm transition-colors;
+    color: hsl(var(--muted-foreground));
+  }
+  .sidebar-link:hover {
+    color: hsl(var(--foreground));
+    background: hsl(var(--accent));
+  }
+  .sidebar-link[data-active="true"] {
+    color: hsl(var(--foreground));
+    background: hsl(var(--accent));
+    @apply font-medium;
+  }
+}
